@@ -1,8 +1,9 @@
 const request = require("supertest");
 const mongoose = require("mongoose");
 const app = require("../server");  // Import the Express app
-const Patient = require("../models/Patient"); // Import the Patient model
+const Doctor = require("../models/Doctor"); // Import the Doctor model
 const nodemailer = require("nodemailer"); // Mock nodemailer
+const { MongoMemoryServer } = require('mongodb-memory-server');
 
 // Mock nodemailer to prevent real email sending during tests
 jest.mock('nodemailer');
@@ -15,10 +16,9 @@ nodemailer.createTransport.mockReturnValue({
   }),
 });
 
-let patientId; // Store the patient's ID for future tests
+let doctorId; // Store the doctor's ID for future tests
 
 // Use an in-memory MongoDB instance for testing
-const { MongoMemoryServer } = require('mongodb-memory-server');
 let mongoServer;
 
 beforeAll(async () => {
@@ -40,126 +40,57 @@ afterAll(async () => {
   await mongoServer.stop();  // Stop the in-memory MongoDB server
 });
 
-describe("Valid Patient API Tests", () => {
-  it("should add a new patient", async () => {
+describe("Doctor API Tests", () => {
+  it("should add a new doctor", async () => {
     const res = await request(app)
-      .post("/patient/add")
+      .post("/doctor/add")
       .send({
-        email: "patient2@example.com",
+        email: "doctor1@example.com",
         password: "password123",
-        firstName: "Alice",
-        lastName: "Smith",
-        gender: "Female",
-        dob: "1995-05-20",
-        civilStatus: "Single",
-        phone: "1234567890",
-        emergencyPhone: "0987654321",
-        gaurdianNIC: "NIC54321",
-        gaurdianName: "Bob Smith",
-        gaurdianPhone: "1122334455",
-        height: "5.7",
-        weight: "60",
-        bloodGroup: "A+",
-        allergies: "None",
-        medicalStatus: "Healthy",
-        insuranceNo: "INS54321",
-        insuranceCompany: "ABC Insurance",
+        name: "Dr. John Doe",
+        specialization: "Cardiology",
+        qualifications: "MBBS, MD",
       });
 
     expect(res.status).toBe(200);
-    expect(res.body).toBe("Patient Added");
+    expect(res.body).toBe("Doctor Added");
 
-    // Store the patient's ID for later tests
-    const patient = await Patient.findOne({ email: "patient2@example.com" });
-    patientId = patient._id;  // Save the created patient's ID
+    // Store the doctor's ID for later tests
+    const doctor = await Doctor.findOne({ email: "doctor1@example.com" });
+    expect(doctor).toBeDefined();
+    doctorId = doctor._id;  // Save the created doctor's ID
   });
 
-  it("should login a patient", async () => {
+  it("should fetch all doctors", async () => {
+    const res = await request(app).get("/doctor");
+    expect(res.status).toBe(200);
+    expect(res.body.length).toBeGreaterThan(0);  // Check that at least one doctor is returned
+  });
+
+  it("should fetch a doctor by ID", async () => {
+    const res = await request(app).get(`/doctor/get/${doctorId}`);
+    expect(res.status).toBe(200);
+    expect(res.body.doctor).toBeDefined();
+    expect(res.body.doctor._id).toBe(doctorId.toString());
+  });
+
+  it("should update a doctor's information", async () => {
     const res = await request(app)
-      .post("/patient/login")
+      .put(`/doctor/update/${doctorId}`)
       .send({
-        email: "patient2@example.com",
-        password: "password123",
+        name: "Dr. John Updated",
+        email: "doctor1@example.com",
+        password: "newpassword123",
+        specialization: "Neurology",
+        qualifications: "MBBS, MD, PhD",
       });
 
     expect(res.status).toBe(200);
-    expect(res.body.rst).toBe("success");
-    expect(res.body).toHaveProperty('tok');  // Ensure the token is generated
-  });
-
-  it("should fetch a patient by ID", async () => {
-    const res = await request(app).get(`/patient/get/${patientId}`);
-    expect(res.status).toBe(200);
-    expect(res.body.patient).toBeDefined();
-    expect(res.body.patient._id).toBe(patientId.toString());
-  });
-
-  it("should update a patient's information", async () => {
-    const res = await request(app)
-      .put(`/patient/update/${patientId}`)
-      .send({
-        firstName: "Alice Updated",
-        lastName: "Smith Updated",
-        phone: "9876543210",
-        bloodGroup: "B+",
-      });
-
-    expect(res.status).toBe(200);
-    expect(res.body.status).toBe("Patient updated");
+    expect(res.body.status).toBe("Doctor updated");
 
     // Verify the update
-    const updatedPatient = await Patient.findById(patientId);
-    expect(updatedPatient.firstName).toBe("Alice Updated");
-    expect(updatedPatient.bloodGroup).toBe("B+");
-  });
-
-  it("should delete a patient", async () => {
-    const res = await request(app).delete(`/patient/delete/${patientId}`);
-    expect(res.status).toBe(200);
-    expect(res.body.status).toBe("Patient deleted");
-
-    // Verify the patient is deleted
-    const deletedPatient = await Patient.findById(patientId);
-    expect(deletedPatient).toBeNull();
-  });
-
-  it("should fetch all patients", async () => {
-    const res = await request(app).get("/patient");
-    expect(res.status).toBe(200);
-    expect(res.body.length).toBeGreaterThan(0);  // Ensure at least one patient exists
-  });
-});
-
-describe("Invalid Patient API Tests", () => {
-  // Removed the failed tests for missing required fields and invalid email format
-
-  it("should return an error if patient ID is invalid when fetching a patient", async () => {
-    const res = await request(app).get(`/patient/get/invalid-id`);
-    expect(res.status).toBe(500);  // Expect error message for invalid ID
-    expect(res.body.error).toBeDefined();  // Ensure the error message is returned
-  });
-
-  it("should return an error if password is incorrect during login", async () => {
-    const res = await request(app)
-      .post("/patient/login")
-      .send({
-        email: "patient2@example.com",
-        password: "wrongpassword",  // Incorrect password
-      });
-
-    expect(res.status).toBe(200);
-    expect(res.body.rst).toBe("incorrect password");
-  });
-
-  it("should return an error if patient doesn't exist during login", async () => {
-    const res = await request(app)
-      .post("/patient/login")
-      .send({
-        email: "nonexistent@example.com",  // Non-existent email
-        password: "password123",
-      });
-
-    expect(res.status).toBe(200);
-    expect(res.body.rst).toBe("invalid user");
+    const updatedDoctor = await Doctor.findById(doctorId);
+    expect(updatedDoctor.name).toBe("Dr. John Updated");
+    expect(updatedDoctor.specialization).toBe("Neurology");
   });
 });

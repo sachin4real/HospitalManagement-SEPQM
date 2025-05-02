@@ -1,8 +1,25 @@
+// Configurations/DB_Connection.js
 const mongoose = require("mongoose");
 
 let isConnected = false; // Variable to track the connection status
 
-const connectToDatabase = async () => {
+const connectToDatabase = async (isTestEnv = false) => {
+  if (isTestEnv) {
+    // Use MongoDB Memory Server for tests
+    const { MongoMemoryServer } = require("mongodb-memory-server");
+    const mongoServer = await MongoMemoryServer.create();
+    const mongoUri = mongoServer.getUri();
+
+    if (mongoose.connection.readyState === 0) {  // Not connected
+      await mongoose.connect(mongoUri, {
+        useNewUrlParser: true,
+        useUnifiedTopology: true,
+      });
+    }
+    return mongoose.connection;
+  }
+
+  // Normal database connection for production or development
   if (isConnected) {
     console.log("Database is already connected.");
     return mongoose.connection; // Return the existing connection

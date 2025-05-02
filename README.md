@@ -27,14 +27,6 @@ Helasuwa.lk is a comprehensive hospital management system built to streamline ad
 ## Pharmacy Inventory
 - **Stock Management**: The system allows for pharmacy inventory management, keeping track of medicines, stock levels, and expiration dates.
 
-## Testing
-
-The system includes unit tests to ensure stability and proper functionality for critical features such as:
-
-- **Staff Management**: Verifies that Admins can successfully add staff members and send emails with login credentials.
-- **Appointment Scheduling**: Ensures patients can book appointments with doctors based on available time slots.
-- **Examination & Prescription**: Tests that doctors can update patient records, issue prescriptions, and manage medical histories.
-- **Payment Processing**: Validates both payment gateway and insurance-based payments. 
 
 ## Technology Stack
 - **Frontend**: React.js
